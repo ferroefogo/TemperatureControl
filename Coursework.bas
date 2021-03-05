@@ -8,7 +8,7 @@
 ;Simulation Assumptions:
 	;A.0 is the analogue reading of the room temperature
 	;A.1 is the digital button input for the fan override
-	;A.2 is the digital button input for the heater
+	;A.2 is the potentiometer analogue input for the heater
 	;B.0 is the copied analogue reading of the room temperature
 	;B.1 connects to the fan
 	;B.2 is the copied analogue reading of the temperature dial (potentiometer)
@@ -37,17 +37,18 @@ init:
 	movwf trisa
 	bcf status,RP0
 	
-	del equ b5
+	del equ b5	;The file register B.5 will be renamed to 'del'
 	
-	low B.3
+	low B.3	;Turn the heater off at startup, in case it was on before.
+	low B.1	;Turn the fan off for the same reason as above.
 
 check_override:
 	;Check if the user has overridden the automatic system
 	btfsc porta,1
 	goto fan_override
-	call readadc2
+	call readadc2	;Read the temperature voltage value at A.2 and move that to B.2 (b2).
 	if b2 < 50 then check_temp	;Potentiometer has not been moved enough to turn the heater on manually.
-	if b2 >= 50 then heater_override	;Potentiometer has been moved enough to heat the room at, at least, 10 degrees. 
+	if b2 >= 50 then heater_override	;Potentiometer has been moved enough to heat the room at, at least, 10 degrees.
 
 check_temp:
 	;Override is no longer active, because the temperature pivot system is going to run in the following lines, therefore set the LEDs to be off
@@ -84,11 +85,23 @@ fan_override:
 heater_override:
 	call delay_length
 	high B.4	;LED to indicate override
-	if b2 >= 50 and b2 < 100 then b3 = 50
-	else if b2 >= 100 and b2 < 150 then b3=100
-	else if b2 >= 150 and b2 < 200 then b3=150
-	else if b2 >= 200 and b2 < 250 then b3=200
-	else if b2 >= 250 then b3=250
+	; The following if statements check if the analogue ADC value 
+	; read from the potentiometer input of the heater override, 
+	; is between a certain analogue voltage bounds, so that a 
+	; specific amount of analogue signal can be sent to the heater
+	; to heat up a certain amount given.
+	; E.g. If the potentiometer is letting in 50mA, that value will correspond
+	; to a certain temperature that the heater will generate with that current, like 20 degrees.
+	if b2 >= 50 and b2 < 100 then
+		b3 = 50
+	else if b2 >= 100 and b2 < 150 then
+		b3=100
+	else if b2 >= 150 and b2 < 200 then
+		b3=150
+	else if b2 >= 200 and b2 < 250 then 
+		b3=200
+	else if b2 >= 250 then 
+		b3=250
 	endif
 	goto check_override
 
