@@ -30,6 +30,7 @@
 	;	250 is ~30 degrees
 	
 init:
+	; Port Setup Below.
 	bsf status,RP0
 	movlw b'00000000'
 	movwf trisb
@@ -61,7 +62,11 @@ check_temp:
 	;if the B.0 port has an analogue signal below 50, it will output heat to reach the 20 degree pivot point.
 	if b0 < 128 then too_cold	;Too Cold, heater on, fan off
 	if b0 > 128 then too_hot	;Too Hot, heater off, fan on
-	if b0 = 128 then check_temp	;If the temperature is perfectly balanced at 128 (not very common) then keep checking the temperature.
+	if b0 = 128 then 
+		low B.1	;Turns the fan off
+		low B.3	;Turns the heater off
+		goto check_override	;If the temperature is perfectly balanced at 128 (not very common) then keep checking for an override.
+	endif
 	
 too_hot:
 	;Too hot, switch the fan on.
@@ -72,12 +77,12 @@ too_hot:
 too_cold:
 	;Too cold, switch the heater on.
 	low B.1	;Turns the fan off
-	high B.2	;Turns the heater on
+	high B.3	;Turns the heater on
 	goto check_override
 
 fan_override:
 	call delay_length
-	high B.1
+	high B.1	;Turns the fan on
 	high B.4	;LED to indicate override
 	;Use switches rather than buttons to turn the fan on/off on previous line (55)
 	goto check_override
@@ -87,7 +92,7 @@ heater_override:
 	high B.4	;LED to indicate override
 	; The following if statements check if the analogue ADC value 
 	; read from the potentiometer input of the heater override, 
-	; is between a certain analogue voltage bounds, so that a 
+	; is between certain analogue voltage bounds, so that a 
 	; specific amount of analogue signal can be sent to the heater
 	; to heat up a certain amount given.
 	; E.g. If the potentiometer is letting in 50mA, that value will correspond
@@ -106,13 +111,13 @@ heater_override:
 	goto check_override
 
 delay_length:
-	movlw d'3'
-	movwf del
+	movlw d'6'	;Assign literal decimal value '6' in the working register.
+	movwf del	;Move said decimal value to the 'del' file register.
 	
 time_delay:
-	decfsz del,F
-	goto time_delay
-	nop
-	return
+	decfsz del,F	;Decrement by 1 in the 'del' file register and store the result in the same 'del' file register.
+	goto time_delay	;loop the decrement.
+	nop			;No Operation, since skipping to a return isn't handled well by the software.
+	return		;Go back to call line position.
 	
 	
